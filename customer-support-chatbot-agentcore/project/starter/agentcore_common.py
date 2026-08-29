@@ -30,7 +30,7 @@ REGION = os.environ.get("AWS_REGION", "us-east-1")
 # accounts cannot complete.
 MODEL_ID = "us.amazon.nova-pro-v1:0"
 
-HARNESS_NAME = os.environ.get("HARNESS_NAME", "support-chatbot-harness")
+HARNESS_NAME = os.environ.get("HARNESS_NAME", "support_chatbot_harness")
 GATEWAY_NAME = os.environ.get("GATEWAY_NAME", "support-chatbot-gateway")
 GATEWAY_TARGET_NAME = "bugreports"  # model sees the tool as bugreports___create_bug_report
 TOOL_NAME = f"{GATEWAY_TARGET_NAME}___create_bug_report"
@@ -146,9 +146,7 @@ def invoke_harness(harness_arn, gateway_arn, session_id, text):
         ["invoke_harness", "invoke_agent_harness", "invoke_agent_runtime"],
         harnessArn=harness_arn,
         runtimeSessionId=session_id,
-        modelId=MODEL_ID,
-        gatewayArns=[gateway_arn] if gateway_arn else [],
-        inputText=text,
+        messages=[{"role": "user", "content": [{"text": text}]}],
     )
     return extract_reply(response)
 
@@ -188,13 +186,17 @@ def extract_reply(response):
                 text_parts.append(node.decode("utf-8", errors="replace"))
 
     body = response.get("response") or response.get("body") or response
+    if response.get("stream") is not None:
+        for event in response["stream"]:
+            walk(event)
+        body = None
     if hasattr(body, "read"):
         raw = body.read()
         try:
             walk(json.loads(raw))
         except Exception:  # noqa: BLE001
             text_parts.append(raw.decode("utf-8", errors="replace"))
-    else:
+    elif body is not None:
         walk(body)
 
     reply = "\n".join(part.strip() for part in text_parts if part and part.strip())

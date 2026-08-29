@@ -77,6 +77,56 @@ def with_iam_retry(fn, attempts=6, delay=15):
     raise last
 
 
+def create_or_get_gateway(client, name, **kwargs):
+    try:
+        return call_first_available(client, ["create_gateway"], name=name, **kwargs)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "ConflictException":
+            raise
+
+        response = client.list_gateways(maxResults=100)
+        while True:
+            for gateway in response.get("items", []):
+                if gateway.get("name") == name:
+                    print(f"  gateway already exists: {gateway.get('gatewayId')}")
+                    return "get_gateway", client.get_gateway(
+                        gatewayIdentifier=gateway["gatewayId"]
+                    )
+            next_token = response.get("nextToken")
+            if not next_token:
+                break
+            response = client.list_gateways(maxResults=100, nextToken=next_token)
+        raise
+
+
+def create_or_get_target(client, gateway_id, name, **kwargs):
+    try:
+        return call_first_available(
+            client,
+            ["create_gateway_target"],
+            gatewayIdentifier=gateway_id,
+            name=name,
+            **kwargs,
+        )
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "ConflictException":
+            raise
+
+        response = client.list_gateway_targets(gatewayIdentifier=gateway_id, maxResults=100)
+        while True:
+            for target in response.get("items", []):
+                if target.get("name") == name:
+                    print(f"  target already exists: {target.get('targetId')}")
+                    return "list_gateway_targets", target
+            next_token = response.get("nextToken")
+            if not next_token:
+                break
+            response = client.list_gateway_targets(
+                gatewayIdentifier=gateway_id, maxResults=100, nextToken=next_token
+            )
+        raise
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stack-name", default=TOOL_STACK_NAME)
@@ -96,15 +146,14 @@ def main():
 
     print(f"Creating gateway '{args.gateway_name}' ...")
     _, gateway = with_iam_retry(
-        lambda: call_first_available(
+        lambda: create_or_get_gateway(
             client,
-            ["create_gateway"],
-            name=args.gateway_name,
+            args.gateway_name,
             roleArn=outputs["GatewayRoleArn"],
             protocolType="MCP",
             authorizerType="AWS_IAM",
             description="Exposes the create_bug_report Lambda to the support chatbot harness.",
-        )[1]
+        )
     )
     gateway_id = gateway.get("gatewayId") or gateway.get("id")
     gateway_arn = gateway.get("gatewayArn") or gateway.get("arn")
@@ -113,11 +162,10 @@ def main():
 
     print(f"Registering Lambda target '{GATEWAY_TARGET_NAME}' ...")
     _, target = with_iam_retry(
-        lambda: call_first_available(
+        lambda: create_or_get_target(
             client,
-            ["create_gateway_target"],
-            gatewayIdentifier=gateway_id,
-            name=GATEWAY_TARGET_NAME,
+            gateway_id,
+            GATEWAY_TARGET_NAME,
             description="Bug report ticket creation.",
             targetConfiguration={
                 "mcp": {
@@ -128,7 +176,7 @@ def main():
                 }
             },
             credentialProviderConfigurations=[{"credentialProviderType": "GATEWAY_IAM_ROLE"}],
-        )[1]
+        )
     )
     target_id = target.get("targetId") or target.get("id")
     print(f"  target id:   {target_id}")

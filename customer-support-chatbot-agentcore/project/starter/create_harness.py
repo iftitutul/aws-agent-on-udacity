@@ -12,6 +12,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
+import time
 
 from agentcore_common import (
     HARNESS_NAME,
@@ -31,20 +33,39 @@ def find_existing(client, name):
         method = getattr(client, op, None)
         if not callable(method):
             continue
-        try:
-            items = method().get("harnessSummaries") or method().get("items") or []
-        except Exception:  # noqa: BLE001
-            return None
-        for item in items:
-            if item.get("name") == name:
-                return item.get("harnessId") or item.get("id"), item.get("harnessArn") or item.get("arn")
+        response = method(maxResults=100)
+        while True:
+            items = response.get("harnesses") or response.get("harnessSummaries") or response.get("items") or []
+            for item in items:
+                if item.get("harnessName") == name or item.get("name") == name:
+                    return item.get("harnessId") or item.get("id"), item.get("harnessArn") or item.get("arn")
+            next_token = response.get("nextToken")
+            if not next_token:
+                break
+            response = method(maxResults=100, nextToken=next_token)
     return None
+
+
+def wait_for_harness_ready(client, harness_id, attempts=40, delay=15):
+    for attempt in range(1, attempts + 1):
+        response = client.get_harness(harnessId=harness_id).get("harness", {})
+        status = response.get("status")
+        if status == "READY":
+            return
+        if status in {"FAILED", "DELETING", "DELETED"}:
+            raise RuntimeError(f"Harness {harness_id} entered terminal status {status}")
+        if attempt < attempts:
+            print(f"  harness status: {status or 'unknown'}; retry {attempt}/{attempts - 1} in {delay}s")
+            time.sleep(delay)
+    raise TimeoutError(f"Harness {harness_id} was not ready after {attempts * delay}s")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--name", default=HARNESS_NAME)
     args = parser.parse_args()
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", args.name):
+        parser.error("--name must start with a letter and contain only letters, digits, or underscores (max 40 characters)")
 
     config = load_config(required=("gatewayArn", "harnessRoleArn"))
     prompt = read_system_prompt()
@@ -56,22 +77,30 @@ def main():
     existing = find_existing(client, args.name)
 
     common = {
-        "name": args.name,
-        "description": "Nimbus Market customer support chatbot.",
-        "instructions": prompt,
-        "modelId": MODEL_ID,
-        "roleArn": config["harnessRoleArn"],
-        "gatewayArns": [config["gatewayArn"]],
+        "harnessName": args.name,
+        "executionRoleArn": config["harnessRoleArn"],
+        "model": {"bedrockModelConfig": {"modelId": MODEL_ID}},
+        "systemPrompt": [{"text": prompt}],
+        "tools": [
+            {
+                "type": "agentcore_gateway",
+                "name": "bugreports",
+                "config": {
+                    "agentCoreGateway": {"gatewayArn": config["gatewayArn"]}
+                },
+            }
+        ],
     }
 
     if existing:
         harness_id, _ = existing
+        wait_for_harness_ready(client, harness_id)
         print(f"Harness '{args.name}' exists ({harness_id}) — updating with the current prompt ...")
         _, response = call_first_available(
             client,
             ["update_harness", "update_agent_harness"],
-            harnessIdentifier=harness_id,
-            **{k: v for k, v in common.items() if k != "name"},
+            harnessId=harness_id,
+            **{k: v for k, v in common.items() if k != "harnessName"},
         )
     else:
         print(f"Creating harness '{args.name}' ...")
@@ -79,8 +108,11 @@ def main():
             client, ["create_harness", "create_agent_harness"], **common
         )
 
-    harness_id = response.get("harnessId") or response.get("id")
-    harness_arn = response.get("harnessArn") or response.get("arn")
+    harness_id = response.get("harnessId") or response.get("id") or (existing and existing[0])
+    harness_arn = response.get("harnessArn") or response.get("arn") or (existing and existing[1])
+    if harness_id and not harness_arn:
+        harness = client.get_harness(harnessId=harness_id).get("harness", {})
+        harness_arn = harness.get("harnessArn") or harness.get("arn")
 
     save_config({"harnessName": args.name, "harnessId": harness_id, "harnessArn": harness_arn, "modelId": MODEL_ID})
 

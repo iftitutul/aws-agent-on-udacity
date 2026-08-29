@@ -110,6 +110,8 @@ Resources:
                   - bedrock-agentcore:InvokeGateway
                   - bedrock-agentcore:ListTools
                   - bedrock-agentcore:CallTool
+                  - bedrock-agentcore:ListEvents
+                  - bedrock-agentcore:CreateEvent
                 Resource: "*"
               - Effect: Allow
                 Action:
