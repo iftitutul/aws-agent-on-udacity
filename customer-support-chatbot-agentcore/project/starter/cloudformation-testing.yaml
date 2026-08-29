@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Customer support chatbot - testing stack. Creates the S3 bucket that holds the evaluation
+  dataset and results, plus the IAM role Amazon Bedrock Evaluations assumes to read the dataset
+  and write results back.
+
+Resources:
+  EvalDatasetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "udacity-agentic-engineer-c1-eval-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, PUT, POST, DELETE]
+            AllowedOrigins: ["*"]
+            ExposedHeaders: [Access-Control-Allow-Origin]
+
+  BedrockEvalRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-bedrock-eval-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: eval-dataset-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt EvalDatasetBucket.Arn
+                  - !Sub "${EvalDatasetBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-pro-v1:0"
+
+Outputs:
+  EvalDatasetBucketName:
+    Description: Bucket for the JSONL eval dataset and the evaluation job results.
+    Value: !Ref EvalDatasetBucket
+  BedrockEvalRoleArn:
+    Description: Role ARN passed to `aws bedrock create-evaluation-job --role-arn`.
+    Value: !GetAtt BedrockEvalRole.Arn

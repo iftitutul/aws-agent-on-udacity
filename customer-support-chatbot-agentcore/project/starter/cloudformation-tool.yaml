@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Customer support chatbot - tool stack. Creates the bug-report DynamoDB table, the
+  create_bug_report Lambda that backs the AgentCore Gateway target, and the IAM roles used by
+  the gateway and the managed harness.
+
+Parameters:
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90]
+    Description: CloudWatch Logs retention for the Lambda function.
+
+Resources:
+  # --------------------------------------------------------------------- storage
+  BugReportsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-bug-reports"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticketId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticketId
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: project
+          Value: agentcore-support-chatbot
+
+  # ------------------------------------------------------------------------ IAM
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: write-bug-reports
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource: !GetAtt BugReportsTable.Arn
+
+  GatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-gateway-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: invoke-bug-report-lambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt CreateBugReportFunction.Arn
+
+  HarnessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-harness-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: invoke-models-and-gateway
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub "arn:aws:bedrock:*::foundation-model/amazon.nova-pro-v1:0"
+                  - !Sub "arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/us.amazon.nova-pro-v1:0"
+              - Effect: Allow
+                Action:
+                  - bedrock-agentcore:InvokeGateway
+                  - bedrock-agentcore:ListTools
+                  - bedrock-agentcore:CallTool
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+
+  # --------------------------------------------------------------------- compute
+  CreateBugReportFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-create-bug-report"
+      Description: Stores customer bug reports in DynamoDB and returns a ticket ID.
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Timeout: 20
+      MemorySize: 256
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BugReportsTable
+      Code:
+        # Kept in sync with create_bug_report.py in the repository.
+        ZipFile: |
+          import json
+          import logging
+          import os
+          import uuid
+          from datetime import datetime, timezone
+
+          import boto3
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          TABLE_NAME = os.environ["TABLE_NAME"]
+          MAX_FIELD_CHARS = 4000
+          REQUIRED_FIELDS = ("description", "stepsToReproduce", "environment")
+
+          _table = boto3.resource("dynamodb").Table(TABLE_NAME)
+
+
+          def _unwrap(event):
+              if not isinstance(event, dict):
+                  raise ValueError("event must be a JSON object")
+              if any(f in event for f in REQUIRED_FIELDS):
+                  return event
+              body = event.get("body")
+              if isinstance(body, str):
+                  return json.loads(body)
+              if isinstance(body, dict):
+                  return body
+              if isinstance(event.get("parameters"), list):
+                  return {p.get("name"): p.get("value") for p in event["parameters"]}
+              return event
+
+
+          def _clean(value, field):
+              if value is None:
+                  raise ValueError("missing required field: %s" % field)
+              text = str(value).strip()
+              if not text:
+                  raise ValueError("missing required field: %s" % field)
+              return text[:MAX_FIELD_CHARS]
+
+
+          def lambda_handler(event, context):
+              logger.info("received event: %s", json.dumps(event, default=str)[:2000])
+              try:
+                  args = _unwrap(event)
+                  item = {f: _clean(args.get(f), f) for f in REQUIRED_FIELDS}
+              except (ValueError, json.JSONDecodeError) as exc:
+                  return {"status": "REJECTED", "error": str(exc)}
+
+              now = datetime.now(timezone.utc)
+              item["ticketId"] = "BUG-%s-%s" % (now.strftime("%Y%m%d"), uuid.uuid4().hex[:4].upper())
+              item["status"] = "OPEN"
+              item["createdAt"] = now.isoformat(timespec="seconds")
+              item["source"] = "agentcore-support-chatbot"
+
+              try:
+                  _table.put_item(Item=item)
+              except Exception as exc:
+                  logger.exception("failed to write ticket")
+                  return {"status": "ERROR", "error": "could not store bug report: %s" % exc}
+
+              logger.info("created ticket %s", item["ticketId"])
+              return {
+                  "ticketId": item["ticketId"],
+                  "status": item["status"],
+                  "createdAt": item["createdAt"],
+                  "message": "Bug report %s created." % item["ticketId"],
+              }
+
+  CreateBugReportLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-create-bug-report"
+      RetentionInDays: !Ref LogRetentionDays
+
+Outputs:
+  BugReportsTableName:
+    Description: DynamoDB table holding one item per bug report.
+    Value: !Ref BugReportsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-table-name"
+  CreateBugReportFunctionArn:
+    Description: ARN of the Lambda registered as the create_bug_report gateway target.
+    Value: !GetAtt CreateBugReportFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-lambda-arn"
+  GatewayRoleArn:
+    Description: Role assumed by the AgentCore Gateway to invoke the Lambda.
+    Value: !GetAtt GatewayRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-gateway-role-arn"
+  HarnessRoleArn:
+    Description: Role assumed by the AgentCore managed harness.
+    Value: !GetAtt HarnessRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-harness-role-arn"
