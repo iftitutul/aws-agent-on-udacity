@@ -199,5 +199,6 @@ def extract_reply(response):
     elif body is not None:
         walk(body)
 
-    reply = "\n".join(part.strip() for part in text_parts if part and part.strip())
+    reply = "".join(text_parts)
+    reply = re.sub(r"<thinking>.*?</thinking>", "", reply, flags=re.DOTALL)
     return reply.strip(), tool_calls
