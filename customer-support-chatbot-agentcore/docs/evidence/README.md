@@ -17,3 +17,8 @@ Screenshots for the rubric go in this folder, named as listed in
 | `10-gateway-target.png` | *(optional)* the `bugreports` gateway target |
 
 Crop out account IDs and ARNs where they are not needed. PNG preferred.
+
+Items `05`-`09` (the per-route test flows) can be satisfied instead by
+[`project/starter/examples/chat_transcript_routing_tests.md`](../../project/starter/examples/chat_transcript_routing_tests.md)
+and [`chat_transcript_bug_report.md`](../../project/starter/examples/chat_transcript_bug_report.md)
+— a reviewer explicitly accepted chat.py transcripts as an alternative to screenshots for these.

@@ -1,5 +1,13 @@
 # Customer Support Chatbot — Amazon Bedrock AgentCore
 
+> **Note for reviewers:** the classic/legacy Bedrock Flows builder used in the original rubric is
+> deprecated and was not available for this submission, so this project is built on the newer
+> **AgentCore managed harness** instead, with prompt-based routing in place of Flow condition
+> nodes. [`docs/RUBRIC_MAPPING.md`](docs/RUBRIC_MAPPING.md) maps every rubric criterion (flow,
+> classifier node, condition node, output nodes, etc.) to its AgentCore equivalent and the
+> artefact that satisfies it here — please review against that mapping rather than looking for a
+> Flow resource in the console.
+
 A customer support chatbot for a fictional online shop (Nimbus Market), built on the Amazon
 Bedrock **AgentCore managed harness**. All routing, information gathering and grounding behaviour
 lives in a single system prompt — there are no condition nodes and no separate classifier model.
@@ -127,7 +135,9 @@ Every step is documented in [`docs/SETUP.md`](docs/SETUP.md) and
   the evaluator config. The harness default model needs an AWS Marketplace subscription that lab
   accounts cannot complete.
 - **`agentcore_config.json` carries IDs between steps** and is written by `setup_gateway.py` and
-  `create_harness.py`. It is git-ignored: it contains account-specific ARNs and is reproducible.
+  `create_harness.py`. It's tracked in git (not ignored) so the harness and gateway ARNs are
+  visible as submission evidence — re-run those scripts and `git add` the file again if the ARNs
+  change.
 - **The prompt is the source of truth for behaviour.** After editing `system_prompt.txt`, run
   `create_harness.py` again or the change has no effect.
 

@@ -7,7 +7,14 @@ Work through this before zipping the repository for submission.
 - [ ] `project/starter/output_eval_dataset.jsonl` — generated from your own harness run,
       `grep -c HARNESS_ERROR` returns 0
 - [ ] `project/starter/examples/chat_transcript_bug_report.md` — from your own `chat.py` session,
-      showing the follow-up questions **and** the `[tool call] bugreports___create_bug_report` line
+      showing the follow-up questions **and** the `[tool call] bugreports___create_bug_report` line.
+      **The ticket ID in this file must currently exist in the DynamoDB table** — re-run `chat.py`
+      shortly before taking the `02-dynamodb-item.png` screenshot so the two stay in sync; a prior
+      round's ticket can silently disappear from the table between the transcript being written and
+      the screenshot being taken.
+- [ ] `project/starter/examples/chat_transcript_routing_tests.md` — one clean exchange per route
+      (bug report, FAQ covered, FAQ not covered, other request), as an alternative to screenshots
+      05-09 below. A reviewer explicitly accepted "screenshots or chat.py transcripts" for this item.
 - [ ] `docs/OBSERVATIONS.md` — bracketed placeholders replaced with your actual scores and findings
 
 ## Screenshots in `docs/evidence/`
@@ -35,8 +42,14 @@ python -c "import json;[json.loads(l) for l in open('output_eval_dataset.jsonl')
 
 - [ ] `harness-tests.json` and `flow-tests.json` are identical
 - [ ] `system_prompt.txt` phone number matches `online_shop_faq.md`
-- [ ] `agentcore_config.json` is **not** in the zip (account-specific ARNs, and it is regenerable)
-- [ ] No AWS account IDs, access keys or credentials anywhere in the tracked files
+- [ ] `project/starter/agentcore_config.json` is tracked in git and present in the zip — a
+      reviewer asked for it twice, to show the harness and gateway ARNs, after a manual
+      "copy it into the zip" step got missed. It's no longer `.gitignore`d, so exporting or
+      zipping the repo now includes it automatically. **If you re-run `setup_gateway.py` or
+      `create_harness.py`, the ARNs inside it change — `git add` the updated file before
+      resubmitting**, or the committed copy goes stale.
+- [ ] No AWS access keys, secrets or credentials anywhere in the tracked files (the account ID
+      inside ARNs is fine — it's what the reviewer asked to see)
 - [ ] `venv/`, `__pycache__/` and `.DS_Store` excluded
 
 ## After submitting
