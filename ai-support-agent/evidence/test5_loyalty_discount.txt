@@ -1,0 +1,41 @@
+$ agentcore invoke '{"prompt": "I am a Gold member with 4250 points. Calculate my discount on a $150 standard order.", "customer_id": "CUST-123", "session_id": "t5"}'
+# 2026-10-05T17:18:00Z
+warning: `VIRTUAL_ENV=/Users/iftitt/tt/codebase/github/aws-agent-on-udacity/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+
+⚠️ Recommendation: The Starter Toolkit CLI is no longer supported.
+   Please use the AgentCore CLI (@aws/agentcore) to create, develop, and deploy agents on Amazon Bedrock AgentCore.
+   New Bedrock AgentCore features are only accessible in the AgentCore CLI.
+
+   To uninstall this starter toolkit, run: pip uninstall bedrock-agentcore-starter-toolkit
+   To install the AgentCore CLI: npm install -g @aws/agentcore
+   To import existing agents, run: agentcore import
+   Set AGENTCORE_SUPPRESS_RECOMMENDATION=1 to silence this warning.
+
+╭──────────────────────────────────────────────────── ai_support_agent ─────────────────────────────────────────────────────╮
+│ Session: 4c49cf0d-cf8d-4854-aa48-b21ce08b5c81                                                                             │
+│ Request ID: 743d7499-f078-4eab-a6b5-e00de9476caf                                                                          │
+│ ARN: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-vg9swxANJw                                 │
+│ Logs: aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --follow                                                                                       │
+│       aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --since 1h                                                                                     │
+│ GenAI Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#gen-ai-observability/agent-core          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Response:
+Here's your loyalty discount breakdown for the $150 standard order as a Gold member:
+
+**Your Discount Details:**
+- **Points Redeemed:** 4,000 points ($40 value)
+- **Subtotal After Points:** $110.00
+- **Gold Tier Discount:** 10% ($11.00)
+- **Final Total:** $99.00
+- **Total Savings:** $51.00
+
+**Loyalty Points Update:**
+- **Points Earned from Purchase:** 99 points
+- **Remaining Points Balance:** 250 points
+- **New Total Points Balance:** 349 points
+
+Your Gold membership saved you $51 on this order!
+

@@ -1,0 +1,59 @@
+$ agentcore invoke '{"prompt": "Hi, I am Jane. I prefer concise responses.", "customer_id": "CUST-123", "session_id": "s-A"}'
+# 2026-10-05T17:16:53Z
+warning: `VIRTUAL_ENV=/Users/iftitt/tt/codebase/github/aws-agent-on-udacity/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+
+⚠️ Recommendation: The Starter Toolkit CLI is no longer supported.
+   Please use the AgentCore CLI (@aws/agentcore) to create, develop, and deploy agents on Amazon Bedrock AgentCore.
+   New Bedrock AgentCore features are only accessible in the AgentCore CLI.
+
+   To uninstall this starter toolkit, run: pip uninstall bedrock-agentcore-starter-toolkit
+   To install the AgentCore CLI: npm install -g @aws/agentcore
+   To import existing agents, run: agentcore import
+   Set AGENTCORE_SUPPRESS_RECOMMENDATION=1 to silence this warning.
+
+╭──────────────────────────────────────────────────── ai_support_agent ─────────────────────────────────────────────────────╮
+│ Session: 4c49cf0d-cf8d-4854-aa48-b21ce08b5c81                                                                             │
+│ Request ID: 2ad8bd4b-62cb-461d-90b1-b0a0da8f74ea                                                                          │
+│ ARN: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-vg9swxANJw                                 │
+│ Logs: aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --follow                                                                                       │
+│       aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --since 1h                                                                                     │
+│ GenAI Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#gen-ai-observability/agent-core          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Response:
+Hello Jane! I'll keep my responses concise. How can I assist you today?
+
+Waiting 60s for long-term memory extraction...
+$ agentcore invoke '{"prompt": "Do you remember my name and communication preference?", "customer_id": "CUST-123", "session_id": "s-B"}'
+# 2026-10-05T17:17:57Z
+warning: `VIRTUAL_ENV=/Users/iftitt/tt/codebase/github/aws-agent-on-udacity/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+
+⚠️ Recommendation: The Starter Toolkit CLI is no longer supported.
+   Please use the AgentCore CLI (@aws/agentcore) to create, develop, and deploy agents on Amazon Bedrock AgentCore.
+   New Bedrock AgentCore features are only accessible in the AgentCore CLI.
+
+   To uninstall this starter toolkit, run: pip uninstall bedrock-agentcore-starter-toolkit
+   To install the AgentCore CLI: npm install -g @aws/agentcore
+   To import existing agents, run: agentcore import
+   Set AGENTCORE_SUPPRESS_RECOMMENDATION=1 to silence this warning.
+
+╭──────────────────────────────────────────────────── ai_support_agent ─────────────────────────────────────────────────────╮
+│ Session: 4c49cf0d-cf8d-4854-aa48-b21ce08b5c81                                                                             │
+│ Request ID: 0c27194c-9026-4957-bbca-a8532ba76462                                                                          │
+│ ARN: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-vg9swxANJw                                 │
+│ Logs: aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --follow                                                                                       │
+│       aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --since 1h                                                                                     │
+│ GenAI Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#gen-ai-observability/agent-core          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Response:
+Yes, I recall from your context that your customer ID is CUST-123. However, I don't have access to your personal name or 
+specific communication preferences in this session. 
+
+For personalized assistance, I can access your account details using your customer ID if needed. Would you like me to look up
+your profile information? Or is there something specific you'd like help with regarding your Amazon account?
+

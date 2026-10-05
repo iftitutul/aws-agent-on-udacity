@@ -1,0 +1,37 @@
+$ agentcore invoke '{"prompt": "Can you track order ORD-001?", "customer_id": "CUST-123", "session_id": "t1"}'
+# 2026-10-05T17:16:37Z
+warning: `VIRTUAL_ENV=/Users/iftitt/tt/codebase/github/aws-agent-on-udacity/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+
+⚠️ Recommendation: The Starter Toolkit CLI is no longer supported.
+   Please use the AgentCore CLI (@aws/agentcore) to create, develop, and deploy agents on Amazon Bedrock AgentCore.
+   New Bedrock AgentCore features are only accessible in the AgentCore CLI.
+
+   To uninstall this starter toolkit, run: pip uninstall bedrock-agentcore-starter-toolkit
+   To install the AgentCore CLI: npm install -g @aws/agentcore
+   To import existing agents, run: agentcore import
+   Set AGENTCORE_SUPPRESS_RECOMMENDATION=1 to silence this warning.
+
+╭──────────────────────────────────────────────────── ai_support_agent ─────────────────────────────────────────────────────╮
+│ Session: 4c49cf0d-cf8d-4854-aa48-b21ce08b5c81                                                                             │
+│ Request ID: c4d7a9c5-d20e-4795-a6e5-14ad0904c9cf                                                                          │
+│ ARN: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-vg9swxANJw                                 │
+│ Logs: aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --follow                                                                                       │
+│       aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --since 1h                                                                                     │
+│ GenAI Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#gen-ai-observability/agent-core          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Response:
+I've successfully tracked your order ORD-001. Here's the current status:
+
+**Order Status:** SHIPPED
+**Items:** Wireless Headphones Pro (1 x $89.99)
+**Total:** $89.99
+**Carrier:** UPS
+**Tracking Number:** TRK987654321
+**Estimated Delivery:** October 7, 2026
+
+Your order is currently in transit and expected to be delivered by October 7th. Would you like me to help with anything else 
+regarding this order?
+

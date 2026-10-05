@@ -1,0 +1,39 @@
+$ agentcore invoke '{"prompt": "I want to return my Kindle Paperwhite (ORD-002). Please initiate a refund.", "customer_id": "CUST-123", "session_id": "t2"}'
+# 2026-10-05T17:16:42Z
+warning: `VIRTUAL_ENV=/Users/iftitt/tt/codebase/github/aws-agent-on-udacity/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+
+⚠️ Recommendation: The Starter Toolkit CLI is no longer supported.
+   Please use the AgentCore CLI (@aws/agentcore) to create, develop, and deploy agents on Amazon Bedrock AgentCore.
+   New Bedrock AgentCore features are only accessible in the AgentCore CLI.
+
+   To uninstall this starter toolkit, run: pip uninstall bedrock-agentcore-starter-toolkit
+   To install the AgentCore CLI: npm install -g @aws/agentcore
+   To import existing agents, run: agentcore import
+   Set AGENTCORE_SUPPRESS_RECOMMENDATION=1 to silence this warning.
+
+╭──────────────────────────────────────────────────── ai_support_agent ─────────────────────────────────────────────────────╮
+│ Session: 4c49cf0d-cf8d-4854-aa48-b21ce08b5c81                                                                             │
+│ Request ID: 2749273f-af51-4496-ac83-695c7a185249                                                                          │
+│ ARN: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-vg9swxANJw                                 │
+│ Logs: aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --follow                                                                                       │
+│       aws logs tail /aws/bedrock-agentcore/runtimes/ai_support_agent-vg9swxANJw-DEFAULT --log-stream-name-prefix          │
+│ "2026/10/05/[runtime-logs" --since 1h                                                                                     │
+│ GenAI Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#gen-ai-observability/agent-core          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Response:
+Perfect! I've successfully processed your refund for the Kindle Paperwhite (ORD-002).
+
+**Refund Details:**
+- **Refund ID:** REF-QGLRF7K6
+- **Order:** ORD-002 (Kindle Paperwhite)
+- **Amount:** $139.99
+- **Status:** APPROVED
+- **Credit will appear:** In your account within 3-5 business days
+
+Your refund has been approved and the $139.99 credit should appear in your account within 3-5 business days. 
+
+If you'd like to return the physical item, I can generate a prepaid return shipping label for you. Would you like me to do 
+that?
+
