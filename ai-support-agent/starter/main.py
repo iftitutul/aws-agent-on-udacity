@@ -24,6 +24,7 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.memory import MemoryClient
 from strands.models import BedrockModel
 from strands.tools.mcp.mcp_client import MCPClient
+from strands.types.exceptions import MCPClientInitializationError
 from mcp.client.streamable_http import streamable_http_client
 import argparse, json
 import os, asyncio, boto3
@@ -32,6 +33,7 @@ from strands.hooks import (
 )
 import logging
 import uuid
+from contextlib import ExitStack
 from typing import Dict
 from bedrock_agentcore.tools.code_interpreter_client import code_session
 from strands_tools.browser import AgentCoreBrowser
@@ -39,6 +41,13 @@ from strands_tools.browser import AgentCoreBrowser
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("CSAI_Agent")
+logger.setLevel(logging.INFO)
+
+GATEWAY_UNAVAILABLE_MESSAGE = (
+    "I can't access the order and refund tools right now. Please verify the "
+    "Gateway endpoint and the agent's Gateway permissions, then try again. "
+    "No order or refund action was submitted."
+)
 
 # ── TODO 1 — App Initialisation ───────────────────────────────────────────────
 # Create a BedrockAgentCoreApp instance.
@@ -65,10 +74,13 @@ os.environ["BYPASS_TOOL_CONSENT"] = "true"
 # REGION:     your AWS region, e.g. "us-east-1"
 # MEMORY_ID   format: shown in the AgentCore Memory console
 
-GATEWAY_URL = "https://customersupportgateway-pdr9flmlme.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"   # TODO: Replace with your Gateway URL
+GATEWAY_URL = os.environ.get(
+    "GATEWAY_URL",
+    "https://customersupportgateway-yci8vzqh6k.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp",
+)
 KB_ID       = "VCVXLLHEV1"          # TODO: Replace with your Knowledge Base ID
 REGION      = "us-east-1"       # TODO: Replace with your AWS region
-MEMORY_ID   = "CustomerSupportMemory-3hMYjn4ZwB"        # TODO: Replace with your Memory ID
+MEMORY_ID   = "CustomerSupportMemory-eBNTr77FkI"        # TODO: Replace with your Memory ID
 
 
 # ── TODO 3 — Model and Clients ────────────────────────────────────────────────
@@ -467,17 +479,52 @@ Use your tools rather than guessing:
 If the message starts with "Customer Context:", it is what you remember about this customer from earlier sessions. Use it to personalise your reply (for example, their name and preferred communication style), but do not repeat it verbatim.
 Only state facts returned by your tools. If a tool fails or returns nothing, say so and suggest a next step."""
 
-        mcp_client = MCPClient(lambda: streamable_http_client(GATEWAY_URL))
-        with mcp_client:
-            gateway_tools = []
-            pagination_token = None
-            while True:
-                page = mcp_client.list_tools_sync(pagination_token=pagination_token)
-                gateway_tools.extend(page)
-                pagination_token = page.pagination_token
-                if not pagination_token:
-                    break
-            tools.extend(gateway_tools)
+        gateway_client = MCPClient(
+            lambda: streamable_http_client(GATEWAY_URL), startup_timeout=15
+        )
+        with ExitStack() as stack:
+            # Gateway failures are logged and the agent keeps running with its
+            # local tools, so the customer gets a clear answer instead of a crash.
+            gateway_available = False
+            try:
+                stack.enter_context(gateway_client)
+                gateway_tools = []
+                pagination_token = None
+                while True:
+                    page = gateway_client.list_tools_sync(pagination_token=pagination_token)
+                    gateway_tools.extend(page)
+                    pagination_token = page.pagination_token
+                    if not pagination_token:
+                        break
+                if not gateway_tools:
+                    raise ConnectionError("Gateway returned no tools")
+                tools.extend(gateway_tools)
+                gateway_available = True
+
+                logger.info(
+                    "Gateway connected successfully. Loaded %d tools.",
+                    len(gateway_tools),
+                )
+
+            except TimeoutError:
+                logger.exception("Gateway tool loading timed out")
+
+            except (ConnectionError, MCPClientInitializationError):
+                logger.exception("Gateway connection failed")
+
+            except Exception as exc:
+                logger.exception("Gateway tool loading failed: %s", exc)
+
+            if not gateway_available:
+                logger.warning(
+                    "Continuing without Gateway tools. Next step: check GATEWAY_URL "
+                    "and the runtime role's bedrock-agentcore:InvokeGateway permission."
+                )
+                system_prompt += f"""
+
+IMPORTANT: The order tracker and refund processor tools are currently unavailable.
+If the customer asks about an order, a refund, or a return label, tell them: "{GATEWAY_UNAVAILABLE_MESSAGE}"
+Do not invent order or refund details. You can still answer product, policy, and loyalty questions."""
 
             agent = Agent(
                 model=model,
@@ -490,9 +537,12 @@ Only state facts returned by your tools. If a tool fails or returns nothing, say
         content = response.message.get("content", [])
         return next((block["text"] for block in content if "text" in block), str(response))
 
-    except Exception as e:
+    except TimeoutError:
+        logger.exception("Agent invocation timed out")
+        return "I couldn't complete your request in time. Please try again."
+    except Exception:
         logger.exception("Agent invocation failed")
-        return f"Sorry, I ran into a problem handling your request: {e}"
+        return "Sorry, I ran into a problem handling your request. Please try again."
 
 
 # ── CLI entry point (do not modify) ──────────────────────────────────────────

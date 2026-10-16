@@ -185,10 +185,10 @@ uv run agentcore invoke '{"prompt": "Hello", "customer_id": "CUST-123", "session
 
 ## Phase 8 — Run the six tests and capture evidence
 
-The easiest way is to run all six tests with the script. It saves each transcript to `ai-support-agent/evidence/`.
+The easiest way is to run all six tests with the script. It saves each transcript to `ai-support-agent/evidence/` and stops if an invocation fails.
 
 ```bash
-bash run_tests.sh        # all six (Test 4 waits 60s between sessions)
+bash run_tests.sh        # all six (Test 4 waits 120s between sessions)
 bash run_tests.sh 3      # rerun just one test
 ```
 
@@ -199,11 +199,18 @@ You can also run each `uv run agentcore invoke '...'` command yourself. **Take a
 | 1 | Order tracking (API target) | Can you track order ORD-001? | SHIPPED, **TRK987654321**, **UPS**, estimated delivery date |
 | 2 | Refund (Lambda target) | I want to return my Kindle Paperwhite (ORD-002)… | refund ID, **APPROVED**, "3-5 business days" |
 | 3 | RAG | Benefits of the Platinum tier? | free same-day shipping, **15%** discount, priority support |
-| 4 | Memory | Session `s-A`: "Hi, I am Jane. I prefer concise responses." → wait 30s or more → session `s-B`: "Do you remember my name…" | recalls **Jane** and **concise** |
+| 4 | Memory | Session `s-A`: "Hi, I am Jane. I prefer concise responses." → wait 120s → session `s-B`: "Do you remember my name…" | recalls **Jane** and **concise** |
 | 5 | Code Interpreter | Gold, 4250 pts, $150 standard order | points redeemed **4000**, tier discount **10%**, final total **$99.00**, remaining points **250** |
 | 6 | Browser | Go to https://www.udacity.com … page title | the live page title |
 
 The rubric requires successful calls to **two different Gateway tools**: one from the API target and one from the Lambda target. Tests 1 and 2 cover this.
+
+For Test 4, capture **two separate screenshots** in addition to the transcript:
+
+- `evidence/test4_session_a.png`: the first invocation showing the name and preference shared with the agent.
+- `evidence/test4_session_b.png`: the later invocation in session `s-B` showing it recalls both facts.
+
+The existing `evidence/test4.png` only shows Session A, and the existing Test 4 transcript records a failed recall in Session B. Neither is sufficient evidence of cross-session recall. Redeploy after code changes, rerun Test 4, and only submit a new Session B screenshot if the response actually recalls both facts. If it still fails after the extraction wait, inspect the AgentCore Memory strategy status and runtime logs rather than treating the test as passed.
 
 ---
 
@@ -257,5 +264,6 @@ Delete these resources in order. OpenSearch Serverless keeps charging until you 
 | Agent says "Knowledge base not configured" | `KB_ID` is still a placeholder. Fix it and redeploy |
 | AccessDenied on Retrieve, Memory, or Browser | Run `setup_permissions.py` again and wait about 60 seconds |
 | No order or refund tools are used | Check `GATEWAY_URL` (it must end in `/mcp`) and the targets in MCP Inspector |
-| Test 4 doesn't recall Jane | Wait longer (extraction can take about a minute), then rerun session `s-B` only |
+| Gateway connection fails | Check the endpoint and the runtime role's Gateway permissions. The agent returns a safe retry message and logs the failure without returning exception details to the user |
+| Test 4 doesn't recall Jane | Allow up to 120 seconds for extraction, then run `bash run_tests.sh 4` to create a fresh Session A/B transcript and check whether Session B recalls both facts |
 | Starter Toolkit "no longer supported" warning | Safe to ignore for this project |

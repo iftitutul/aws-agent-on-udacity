@@ -38,3 +38,33 @@ on what you purchase:
 Points can be redeemed at a rate of 100 points = $1 discount, with a minimum redemption of 500 points. Points remain valid 
 for 2 years from the date they're earned.
 
+$ agentcore invoke '{"prompt": "What are the benefits of the Platinum loyalty tier?", "customer_id": "CUST-123", "session_id": "t3"}' 
+# 2026-10-16T10:55:15Z
+warning: `VIRTUAL_ENV=/Users/iftitt/tt/codebase/github/aws-agent-on-udacity/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+╭─────────────────────────────────── ai_support_agent ───────────────────────────────────╮
+│ Session: fc323e91-41d8-4bdc-a018-2a0ad9dbe524                                          │
+│ Request ID: fb5d2a6f-2f6d-4001-87fc-d524085a2fc5                                       │
+│ ARN:                                                                                   │
+│ arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-8zBRJ6AAjT   │
+│ Logs: aws logs tail                                                                    │
+│ /aws/bedrock-agentcore/runtimes/ai_support_agent-8zBRJ6AAjT-DEFAULT                    │
+│ --log-stream-name-prefix "2026/10/16/[runtime-logs" --follow                           │
+│       aws logs tail                                                                    │
+│ /aws/bedrock-agentcore/runtimes/ai_support_agent-8zBRJ6AAjT-DEFAULT                    │
+│ --log-stream-name-prefix "2026/10/16/[runtime-logs" --since 1h                         │
+│ GenAI Dashboard:                                                                       │
+│ https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#gen-ai-observability/a │
+│ gent-core                                                                              │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+
+Response:
+I apologize, but I'm unable to find specific information about the Platinum loyalty tier 
+benefits in our knowledge base. 
+
+However, I can help you check your current loyalty status and points balance if you'd 
+like. This would give you a better understanding of where you stand in our loyalty 
+program. 
+
+Would you like me to look up your customer profile to see your current loyalty tier and 
+points balance instead?
+

@@ -30,9 +30,9 @@ agents:
         idle_runtime_session_timeout: null
         max_lifetime: null
     bedrock_agentcore:
-      agent_id: ai_support_agent-vg9swxANJw
-      agent_arn: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-vg9swxANJw
-      agent_session_id: 4c49cf0d-cf8d-4854-aa48-b21ce08b5c81
+      agent_id: ai_support_agent-8zBRJ6AAjT
+      agent_arn: arn:aws:bedrock-agentcore:us-east-1:051454030540:runtime/ai_support_agent-8zBRJ6AAjT
+      agent_session_id: fc323e91-41d8-4bdc-a018-2a0ad9dbe524
     codebuild:
       project_name: null
       execution_role: null
