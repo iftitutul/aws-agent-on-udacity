@@ -1,0 +1,65 @@
+File: src/agent_orchestrator.py
+
+In this final phase, you will enable observability for your deployed agent system and run the end-to-end submission tests.
+Task 6 — Observability
+Background: AgentCore Observability
+
+AgentCore Observability routes execution data to CloudWatch Logs (reasoning chains, tool calls, responses) and AWS X-Ray (distributed latency traces across the full Orchestrator → Worker call chain). See: AgentCore Observability(opens in a new tab)
+What to implement
+
+configure_observability(runtime_arn)
+
+Configure logging and tracing for the AgentCore runtime by building a loggingConfiguration dict and passing it to the pre-written apply_observability_config():
+
+    CloudWatch Logs (cloudWatchConfig): Point to config.AGENT_LOG_GROUP, set INFO-level logging, enable it
+    X-Ray (xRayConfig): Enable tracing with 100% sampling rate
+
+apply_observability_config() turns that into real AWS state: it enables CloudWatch Transaction Search (the mechanism AgentCore Observability uses) at the sampling percentage you chose, creates the log group, and stores the settings as environment variables on your runtime so the deployed agent logs and traces exactly as configured.
+
+    How traces reach X-Ray. The pre-written agent_observability.py records every request as one X-Ray trace: each route_to_* tool becomes a worker-agent node and each Knowledge Base retrieval a KnowledgeBase:* node. It works the same from your machine (test, chat, demo) and inside the deployed runtime (invoke), so the Service Map below shows the real call chain of your code.
+
+Test your work
+
+python tests/test_agent.py task6
+
+After the automated tests pass, send a test request through the system:
+
+python src/agent_orchestrator.py test
+
+Each scenario prints its X-Ray trace id. Then navigate to AWS Console → CloudWatch → X-Ray traces → Service map (also reachable as X-Ray → Service map) and select Last 5 minutes. You should see a trace graph showing the full call chain from NovaMart-Orchestrator through to the worker agents and Knowledge Bases.
+Tips
+
+    X-Ray traces may take 30–60 seconds to appear in the console after invocation
+    Set samplingRate=1.0 during development so every request is traced
+
+End-to-End Submission Test
+
+With all tasks complete, run the full deployment:
+
+python src/agent_orchestrator.py deploy
+
+Test these scenarios manually to verify your system handles all three request types:
+Scenario	Expected Routing
+"I want to return my order ORD-27176" (as CUST-001)	Orchestrator → Inventory → Refund → Communication
+"What is the return policy for premium customers?"	Orchestrator → Policy (3 parallel KB retrievers) → Communication
+"How much are 5 items at $29.99 with 10% off?"	Orchestrator → CommunicationAgent; skip Inventory, Policy and Refund.
+
+
+Run the full test suite one final time:
+
+```bash
+python tests/test_agent.py all
+
+Required deliverable:
+
+    Take a screenshot that shows that all test passed, and shows that you have 120 scores.
+    Take a screenshot of your X-Ray Service Map after running a live request. Navigate to AWS Console → CloudWatch → X-Ray traces → Service map and capture the full trace graph showing the Orchestrator → Worker call chain.
+
+Clean Up
+
+After you have taken your screenshots and submitted the project, delete everything it created so the AWS account stops incurring charges:
+
+python infrastructure/cleanup.py          # dry run - lists what would be deleted
+python infrastructure/cleanup.py --yes    # deletes it
+
+    Clean up after submitting. Nothing in the reviewed submission depends on the resources still existing, but you may need them again if the reviewer asks for changes.

@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  NovaMart multi-agent customer support - foundation infrastructure.
+  DynamoDB tables, policy-docs S3 bucket, S3 Vectors bucket + 3 indexes,
+  AgentCore Runtime execution role and the agent CloudWatch log group.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: udacity-agentcore
+    Description: Prefix used for every resource name and export.
+
+Resources:
+  # ---------------------------------------------------------------- DynamoDB
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-orders"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: customer_id, AttributeType: S }
+        - { AttributeName: order_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: customer_id, KeyType: HASH }
+        - { AttributeName: order_id, KeyType: RANGE }
+
+  CustomersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-customers"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: customer_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: customer_id, KeyType: HASH }
+
+  WorkflowStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-workflow-state"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: session_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: session_id, KeyType: HASH }
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+
+  # ------------------------------------------------------- Policy documents
+  PolicyDocsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join
+        - "-"
+        - - !Ref ProjectName
+          - policy-docs
+          - !Ref AWS::AccountId
+          - !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+
+  # ------------------------------------------------------------- S3 Vectors
+  VectorStoreBucket:
+    Type: AWS::S3Vectors::VectorBucket
+    Properties:
+      VectorBucketName: !Join
+        - "-"
+        - - !Ref ProjectName
+          - vectors
+          - !Ref AWS::AccountId
+          - !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]
+
+  # Titan Embed Text v2 -> 1024 dimensions, cosine distance.
+  # AMAZON_BEDROCK_TEXT / AMAZON_BEDROCK_METADATA must be non-filterable so
+  # chunk text does not count against the 2 KB filterable-metadata limit.
+  ReturnsPolicyIndex:
+    Type: AWS::S3Vectors::Index
+    Properties:
+      VectorBucketArn: !GetAtt VectorStoreBucket.VectorBucketArn
+      IndexName: returns-policy-index
+      DataType: float32
+      Dimension: 1024
+      DistanceMetric: cosine
+      MetadataConfiguration:
+        NonFilterableMetadataKeys: [AMAZON_BEDROCK_TEXT, AMAZON_BEDROCK_METADATA]
+
+  ShippingPolicyIndex:
+    Type: AWS::S3Vectors::Index
+    Properties:
+      VectorBucketArn: !GetAtt VectorStoreBucket.VectorBucketArn
+      IndexName: shipping-policy-index
+      DataType: float32
+      Dimension: 1024
+      DistanceMetric: cosine
+      MetadataConfiguration:
+        NonFilterableMetadataKeys: [AMAZON_BEDROCK_TEXT, AMAZON_BEDROCK_METADATA]
+
+  WarrantyPolicyIndex:
+    Type: AWS::S3Vectors::Index
+    Properties:
+      VectorBucketArn: !GetAtt VectorStoreBucket.VectorBucketArn
+      IndexName: warranty-policy-index
+      DataType: float32
+      Dimension: 1024
+      DistanceMetric: cosine
+      MetadataConfiguration:
+        NonFilterableMetadataKeys: [AMAZON_BEDROCK_TEXT, AMAZON_BEDROCK_METADATA]
+
+  # ------------------------------------------------------------- CloudWatch
+  AgentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${ProjectName}/agents"
+      RetentionInDays: 14
+
+  # -------------------------------------------- AgentCore Runtime exec role
+  AgentCoreExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-runtime-role-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: bedrock-agentcore.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: { "aws:SourceAccount": !Ref AWS::AccountId }
+      Policies:
+        - PolicyName: novamart-agent-runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: BedrockModels
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:Converse
+                  - bedrock:ConverseStream
+                  - bedrock:ApplyGuardrail
+                  - bedrock:GetGuardrail
+                  - bedrock:GetInferenceProfile
+                Resource: "*"
+              - Sid: KnowledgeBases
+                Effect: Allow
+                Action: [bedrock:Retrieve, bedrock:RetrieveAndGenerate, bedrock:GetKnowledgeBase]
+                Resource: "*"
+              - Sid: DynamoDB
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:DescribeTable
+                Resource:
+                  - !GetAtt OrdersTable.Arn
+                  - !GetAtt CustomersTable.Arn
+                  - !GetAtt WorkflowStateTable.Arn
+              - Sid: PolicyDocs
+                Effect: Allow
+                Action: [s3:GetObject, s3:ListBucket]
+                Resource:
+                  - !GetAtt PolicyDocsBucket.Arn
+                  - !Sub "${PolicyDocsBucket.Arn}/*"
+              - Sid: S3Vectors
+                Effect: Allow
+                Action: [s3vectors:QueryVectors, s3vectors:GetVectors, s3vectors:GetIndex]
+                Resource: "*"
+              - Sid: ReadStackExports
+                Effect: Allow
+                Action: [cloudformation:ListExports, cloudformation:DescribeStacks]
+                Resource: "*"
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                  - logs:DescribeLogGroups
+                Resource: "*"
+              - Sid: XRay
+                Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                Resource: "*"
+              - Sid: Metrics
+                Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: "*"
+              - Sid: AgentCoreMemoryAndIdentity
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:CreateEvent
+                  - bedrock-agentcore:ListEvents
+                  - bedrock-agentcore:GetEvent
+                  - bedrock-agentcore:RetrieveMemoryRecords
+                  - bedrock-agentcore:ListMemoryRecords
+                  - bedrock-agentcore:ListMemories
+                  - bedrock-agentcore:GetMemory
+                  - bedrock-agentcore:GetWorkloadAccessToken
+                  - bedrock-agentcore:GetWorkloadAccessTokenForJWT
+                  - bedrock-agentcore:GetWorkloadAccessTokenForUserId
+                Resource: "*"
+
+Outputs:
+  OrdersTableName:
+    Value: !Ref OrdersTable
+    Export: { Name: !Sub "${ProjectName}-OrdersTable" }
+  CustomersTableName:
+    Value: !Ref CustomersTable
+    Export: { Name: !Sub "${ProjectName}-CustomersTable" }
+  WorkflowStateTableName:
+    Value: !Ref WorkflowStateTable
+    Export: { Name: !Sub "${ProjectName}-WorkflowStateTable" }
+  PolicyBucketName:
+    Value: !Ref PolicyDocsBucket
+    Export: { Name: !Sub "${ProjectName}-PolicyBucket" }
+  VectorBucketName:
+    Value: !Select [1, !Split ["/", !GetAtt VectorStoreBucket.VectorBucketArn]]
+    Export: { Name: !Sub "${ProjectName}-VectorBucket" }
+  VectorBucketArn:
+    Value: !GetAtt VectorStoreBucket.VectorBucketArn
+    Export: { Name: !Sub "${ProjectName}-VectorBucketArn" }
+  AgentLogGroupName:
+    Value: !Ref AgentLogGroup
+    Export: { Name: !Sub "${ProjectName}-AgentLogGroup" }
+  AgentCoreRoleArn:
+    Value: !GetAtt AgentCoreExecutionRole.Arn
+    Export: { Name: !Sub "${ProjectName}-AgentCoreRoleArn" }
