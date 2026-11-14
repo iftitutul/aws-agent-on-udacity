@@ -6,4 +6,4 @@ build/
 .DS_Store
 
 # Submission requires the project .env (resource IDs only, no credentials)
-!c
+!.env
